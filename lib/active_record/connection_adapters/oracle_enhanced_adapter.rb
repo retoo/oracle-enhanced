@@ -656,17 +656,17 @@ module ActiveRecord
       end
 
       def begin_db_transaction #:nodoc:
-        @connection.autocommit = false
+        log("BEGIN", "SQL") { @connection.autocommit = false }
       end
 
       def commit_db_transaction #:nodoc:
-        @connection.commit
+        log("COMMIT", "SQL") { @connection.commit }
       ensure
         @connection.autocommit = true
       end
 
       def rollback_db_transaction #:nodoc:
-        @connection.rollback
+        log("ROLLBACK", "SQL") { @connection.rollback }
       ensure
         @connection.autocommit = true
       end
