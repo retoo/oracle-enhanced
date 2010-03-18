@@ -2,6 +2,8 @@ begin
   require "java"
   require "jruby"
 
+
+  java_import com.mchange.v2.c3p0.impl.C3P0ResultSetPeeker
   # ojdbc14.jar file should be in JRUBY_HOME/lib or should be in ENV['PATH'] or load path
 
   ojdbc_jar = "ojdbc14.jar"
@@ -267,7 +269,7 @@ module ActiveRecord
 
       def select_no_retry(sql, name = nil, return_column_names = false)
         stmt = @raw_connection.prepareStatement(sql)
-        rset = stmt.executeQuery
+        rset = C3P0ResultSetPeeker::getInnerFrom(stmt.executeQuery)
 
         # Reuse the same hash for all rows
         column_hash = {}
