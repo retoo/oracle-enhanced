@@ -36,6 +36,31 @@ require 'active_record/connection_adapters/oracle_enhanced_connection'
 require 'digest/sha1'
 
 module ActiveRecord
+  #### Backported WrappedDatabaseException, InvalidForeignKey and RecordNotUnique  ####
+
+  # Parent class for all specific exceptions which wrap database driver exceptions
+  # provides access to the original exception also.
+  class WrappedDatabaseException < StatementInvalid
+    attr_reader :original_exception
+
+    def initialize(message, original_exception)
+      super(message)
+      @original_exception, = original_exception
+    end
+  end
+
+  # Raised when a record cannot be inserted because it would violate a uniqueness constraint.
+  class RecordNotUnique < WrappedDatabaseException
+  end
+
+  # Raised when a record cannot be inserted or updated because it references a non-existent record.
+  class InvalidForeignKey < WrappedDatabaseException
+  end
+
+  # raised when the precision of a value cant be stored by the database
+  class PrecisionError < WrappedDatabaseException
+  end
+
   class Base
     # Establishes a connection to the database that's used by all Active Record objects.
     def self.oracle_enhanced_connection(config) #:nodoc:
@@ -581,6 +606,16 @@ module ActiveRecord
       def execute(sql, name = nil)
         # hack to pass additional "with_returning" option without changing argument list
         log(sql, name) { sql.instance_variable_get(:@with_returning) ? @connection.exec_with_returning(sql) : @connection.exec(sql) }
+      rescue ActiveRecord::StatementInvalid => e
+        case e.message
+        when /ORA-02292/
+          raise InvalidForeignKey.new(e.message, e)
+        when /ORA-00001/
+          raise RecordNotUnique.new(e.message, e)
+        when /ORA-01438/
+          raise PrecisionError.new(e.message, e)
+        end
+        raise e
       end
 
       # Returns an array of arrays containing the field values.
